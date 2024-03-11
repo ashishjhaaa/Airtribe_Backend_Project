@@ -4,101 +4,51 @@ const express = require("express");
 const connection = con.getConnection();
 const router = express.Router();
 
-// Create Course
+// Create/Verify/Reject/Waitlist Course
 router.post("/", (req, res) => {
-    const { course_id, instructor_id, name, max_seats, start_date } = req.body;
-    const query = `INSERT INTO courses (course_id,instructor_id, name, max_seats, start_date) VALUES (${course_id}, ${instructor_id}, '${name}', ${max_seats}, '${start_date}')`;
+    const { lead_id, course_id, learner_id, status } = req.body;
+
+    if (!lead_id || !course_id || !learner_id || !status) {
+        return res.json({ error: "Lead Id, Course Id, Learner Id, and Status are required" });
+    }
+
+    const query = `INSERT INTO leads (lead_id, course_id, learner_id, status) VALUES (${lead_id}, ${course_id}, ${learner_id}, '${status}')`;
 
     connection.query(query, (err) => {
         if (err) {
-            console.log("Error creating course", err);
+            console.log("Error processing lead", err);
             return res.json({ error: "Internal Server Error" });
         }
-        
-        const data = { course_id, instructor_id, name, max_seats, start_date };
-        console.log("Course created successfully");
-        return res.json({ message: "Course created successfully", data });
+
+        const data = { lead_id, course_id, learner_id, status };
+        console.log("Lead processed successfully");
+        return res.json({ message: "Lead processed successfully", data });
     });
 });
 
-// Read Course List
+// Get Lead Status
 router.get("/", (req, res) => {
-    const query = "SELECT * FROM courses";
+    const { lead_id } = req.query;
+
+    if (!lead_id) {
+        return res.json({ error: "Lead Id is required for fetching status" });
+    }
+
+    const query = `SELECT status FROM leads WHERE lead_id = ${lead_id}`;
 
     connection.query(query, (err, results) => {
         if (err) {
-            console.log("Error Reading Data:", err);
+            console.log("Error fetching lead status:", err);
             return res.json({ error: "Internal Server Error" });
         }
 
-        console.log("Successfully Readed" + results);
-        return res.json({ message: "Course Read successfully", results });
-    });
-});
-
-// Update Course Information
-router.put("/", (req, res) => {
-    const { course_id, instructor_id, name, max_seats, start_date } = req.body;
-
-    if (!course_id) {
-        return res.json({ error: "Course Id is required for updating" });
-    }
-    if (!instructor_id) {
-        return res.json({ error: "Instructor Id is required for updating" });
-    }
-    
-    let updateFields = "";
-    
-    if (name) {
-        updateFields += `name = ${name}, `;
-    }
-    
-    if (max_seats) {
-        updateFields += `max_seats = '${max_seats}', `;
-    }
-    if (start_date) {
-        updateFields += `start_date = '${start_date}', `;
-    }
-    
-    updateFields = updateFields.replace(/,\s*$/, "");
-    
-    if (!updateFields) {
-        console.log("No valid fields provided for updating")
-        return res.json({ error: "No valid fields provided for updating" });
-    }
-    
-    const query = `UPDATE courses SET ${updateFields} WHERE (instructor_id = '${instructor_id}') and (course_id = '${course_id}')`;
-    
-    connection.query(query, (err) => {
-        if (err) {
-            console.log("Error updating data:", err);
-            return res.json({ error: "Internal Server Error" });
+        if (results.length === 0) {
+            return res.json({ message: "Lead not found", status: null });
         }
-        
-        console.log("Course updated successfully" + updateFields);
-        return res.json({ message: "Course updated successfully", updateFields });
-    });
-});
 
-// Delete Course
-router.delete("/", (req, res) => {
-    const { course_id, instructor_id, name, max_seats, start_date } = req.body;
-    if (!course_id) {
-        return res.json({ error: "Course Id is required for deleting" });
-    }
-    if (!instructor_id) {
-        return res.json({ error: "Instructor Id is required for deleting" });
-    }
-    query = `DELETE FROM courses WHERE (instructor_id = '${instructor_id}') and (course_id = '${course_id}')`;
-    
-    connection.query(query, (err) => {
-        if (err) {
-            console.log("Error deleting data", err);
-            return res.json({ error: "Internal Server Error" });
-        }
-        
-        console.log("Successfully Deleted");
-        return res.json({ message: "Course deleted successfully" });
+        const status = results[0].status;
+        console.log(`Lead status: ${status}`);
+        return res.json({ message: "Lead status fetched successfully", status });
     });
 });
 
